@@ -105,25 +105,29 @@ def admin_required(view):
 
 
 def ledger_balance(user_id):
+    """
+    Balance = bonuses + daily profits ONLY.
+    Deposit principal does NOT enter balance — it only activates the product.
+    """
     rows = Transaction.query.filter_by(user_id=user_id, status="success").all()
     balance = Decimal("0")
     for row in rows:
-        if row.type in {"deposit", "profit", "referral_bonus", "welcome_bonus", "refund", "checkin_bonus"}:
+        if row.type in {"profit", "referral_bonus", "welcome_bonus", "refund", "checkin_bonus"}:
             balance += Decimal(row.amount)
         elif row.type in {"withdrawal", "withdrawal_fee"}:
             balance -= Decimal(row.amount)
-    for row in Transaction.query.filter_by(user_id=user_id, type="withdrawal", status="pending").all():
-        balance -= Decimal(row.amount)
-    for row in Transaction.query.filter_by(user_id=user_id, type="withdrawal_fee", status="pending").all():
+    # Pending withdrawals / fees reduce available balance
+    for row in Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.status == "pending",
+        Transaction.type.in_(["withdrawal", "withdrawal_fee"]),
+    ).all():
         balance -= Decimal(row.amount)
     return balance
 
 
 def has_active_or_funded_product(user_id):
-    """User must have at least one active investment (or successful deposit) to withdraw."""
     if Investment.query.filter_by(user_id=user_id, status="active").first():
-        return True
-    if Transaction.query.filter_by(user_id=user_id, type="deposit", status="success").first():
         return True
     return False
 
@@ -162,31 +166,73 @@ def initialize_data():
 
 
 def activate_investment(investment):
+    """
+    Activate product only. Principal does NOT go into wallet balance.
+    Daily returns start counting from started_at (24h cycles).
+    """
     if investment.status == "active":
         return
     investment.status = "active"
     investment.started_at = datetime.utcnow()
     investment.maturity_at = datetime.utcnow() + timedelta(days=investment.package.duration_days)
-    paid = Decimal(investment.principal)
+
+    # Mark linked pending deposit as success for records only — does NOT affect balance
     tx = Transaction.query.filter_by(
         reference=investment.payment_reference, type="deposit", status="pending"
     ).first()
     if tx:
         tx.status = "success"
-        tx.description = f"Verified bank transfer for {investment.package.name}"
-    elif not Transaction.query.filter_by(reference=investment.payment_reference, type="deposit", status="success").first():
-        add_transaction(
-            investment.user_id, "deposit", paid, investment.payment_reference,
-            f"Verified bank transfer for {investment.package.name}",
-        )
+        tx.description = f"Product activated — {investment.package.name} (principal not in wallet)"
+
+    # Referral bonus still based on principal when product activates
     referral = Referral.query.filter_by(referred_id=investment.user_id, status="pending").first()
     if referral:
-        referral.amount = (paid * referral.percentage / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        paid = Decimal(investment.principal)
+        referral.amount = (paid * referral.percentage / Decimal("100")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
         referral.status = "qualified"
         add_transaction(
             referral.referrer_id, "referral_bonus", referral.amount,
             description=f"15% referral bonus for user #{investment.user_id}", status="pending",
         )
+
+
+def process_daily_profits(user_id):
+    """
+    Credit daily return for each full 24 hours since activation.
+    Starts after deposit is approved (started_at). Max = package duration_days.
+    """
+    now = datetime.utcnow()
+    investments = Investment.query.filter_by(user_id=user_id, status="active").all()
+    credited = 0
+    for inv in investments:
+        if not inv.started_at:
+            continue
+        elapsed_seconds = (now - inv.started_at).total_seconds()
+        days_due = int(elapsed_seconds // 86400)  # full 24-hour periods
+        if days_due <= 0:
+            continue
+        max_days = inv.package.duration_days or 30
+        days_due = min(days_due, max_days)
+        daily = Decimal(inv.package.daily_payout)
+        for day_n in range(1, days_due + 1):
+            ref = f"PROFIT-{inv.id}-D{day_n}"
+            exists = Transaction.query.filter_by(reference=ref, type="profit").first()
+            if exists:
+                continue
+            add_transaction(
+                user_id, "profit", daily, reference=ref,
+                description=f"Day {day_n} daily return — {inv.package.name}",
+                status="success",
+            )
+            credited += 1
+        # Mark matured
+        if days_due >= max_days and inv.status == "active":
+            inv.status = "completed"
+    if credited:
+        db.session.commit()
+    return credited
 
 
 @app.route("/")
@@ -273,8 +319,10 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    # Credit any due daily returns (every full 24h after activation)
+    process_daily_profits(current_user.id)
     investments = Investment.query.filter_by(user_id=current_user.id).order_by(Investment.created_at.desc()).all()
-    transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.created_at.desc()).limit(12).all()
+    transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.created_at.desc()).limit(15).all()
     checked_in_today = current_user.last_checkin == date.today()
     return render_template(
         "dashboard.html",
@@ -313,6 +361,7 @@ def referral():
 @app.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
+    process_daily_profits(current_user.id)
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         if len(name) < 2:
@@ -349,12 +398,17 @@ def settings():
 @app.route("/withdraw", methods=["GET", "POST"])
 @login_required
 def withdraw():
+    process_daily_profits(current_user.id)
     balance = ledger_balance(current_user.id)
     can_withdraw = has_active_or_funded_product(current_user.id)
     fee_pct = app.config["WITHDRAWAL_FEE_PERCENT"]
     if request.method == "POST":
         if not can_withdraw:
-            flash("You need an active investment product before you can withdraw. The welcome bonus alone cannot be withdrawn.", "error")
+            flash(
+                "You need an active investment product before you can withdraw. "
+                "The welcome bonus alone cannot be withdrawn — deposit into a product first.",
+                "error",
+            )
             return render_template("withdraw.html", balance=balance, can_withdraw=can_withdraw, fee_pct=fee_pct)
         try:
             amount = Decimal(request.form.get("amount", "0"))
@@ -409,10 +463,11 @@ def invest(package_id):
         principal=amount, payment_reference=reference, status="awaiting_payment",
     )
     db.session.add(investment)
+    # Pending record only — does not increase balance
     db.session.add(Transaction(
         user_id=current_user.id, type="deposit", amount=amount,
         reference=reference,
-        description=f"Deposit for {package.name}",
+        description=f"Deposit for {package.name} (activates product only)",
         status="pending",
     ))
     db.session.commit()
@@ -437,7 +492,7 @@ def confirm_payment_sent(investment_id):
     if investment.status == "awaiting_payment":
         investment.status = "payment_submitted"
         db.session.commit()
-        flash("Thanks! Your transfer is pending admin verification.", "success")
+        flash("Transfer submitted. We are confirming your deposit.", "success")
     return redirect(url_for("dashboard"))
 
 
@@ -468,7 +523,7 @@ def approve_investment(inv_id):
         audit("approve_investment", str(investment.id),
               f"Approved investment #{investment.id} for user {investment.user_id}")
         db.session.commit()
-        flash(f"Investment #{investment.id} approved and activated.", "success")
+        flash(f"Investment #{investment.id} activated. Daily returns start now (every 24h).", "success")
     else:
         flash("Investment is not pending payment.", "error")
     return redirect(url_for("admin_dashboard"))
@@ -503,7 +558,6 @@ def approve_transaction(tx_id):
     if not tx:
         abort(404)
     tx.status = "success"
-    # If approving a withdrawal, also approve linked fee with same reference
     if tx.type == "withdrawal" and tx.reference:
         fee = Transaction.query.filter_by(
             reference=tx.reference, type="withdrawal_fee", status="pending"
