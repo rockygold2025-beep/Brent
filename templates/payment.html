@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Payment · {{ brand_name }}{% endblock %}
+{% block content %}
+<section class="shell page-head tight">
+  <span class="eyebrow">Complete deposit</span>
+  <h1>Send your transfer.</h1>
+  <p>Use the exact amount and put your reference in the narration.</p>
+</section>
+<section class="shell">
+  <div class="panel" style="max-width:640px;margin:0 auto 40px">
+    <div class="panel-head"><h2>{{ investment.package.name }}</h2></div>
+    {% set total30 = investment.package.daily_payout * 30 %}
+    <div class="stat-grid" style="margin:14px 0">
+      <article class="stat"><span>Amount</span><strong>₦{{ "{:,.0f}".format(investment.principal) }}</strong></article>
+      <article class="stat"><span>Daily return</span><strong>₦{{ "{:,.0f}".format(investment.package.daily_payout) }}</strong></article>
+      <article class="stat"><span>30-day total</span><strong>₦{{ "{:,.0f}".format(total30) }}</strong></article>
+    </div>
+    <div class="bank-details">
+      <h3>Send to</h3>
+      <div class="list-row"><div><strong>Bank</strong></div><strong>{{ bank_name }}</strong></div>
+      <div class="list-row"><div><strong>Account number</strong></div><strong class="code">{{ bank_account_number }}</strong></div>
+      <div class="list-row"><div><strong>Account name</strong></div><strong>{{ bank_account_name }}</strong></div>
+      <div class="list-row"><div><strong>Narration</strong></div><strong class="code">{{ investment.payment_reference }}</strong></div>
+    </div>
+    {% if investment.status == "awaiting_payment" %}
+    <form method="post" action="{{ url_for('confirm_payment_sent', investment_id=investment.id) }}" style="margin-top:1.1rem">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="button primary full" type="submit">I have sent the transfer</button>
+    </form>
+    {% elif investment.status == "payment_submitted" %}
+    <p class="flash success" style="margin-top:1.1rem">Transfer submitted. We are confirming your deposit.</p>
+    {% elif investment.status == "active" %}
+    <p class="flash success" style="margin-top:1.1rem">This product is active.</p>
+    {% endif %}
+    <p class="small" style="margin-top:1rem"><a href="{{ url_for('dashboard') }}">← Back home</a></p>
+  </div>
+</section>
+{% endblock %}

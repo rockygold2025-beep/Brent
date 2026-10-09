@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Withdraw · {{ brand_name }}{% endblock %}
+{% block content %}
+<section class="auth shell">
+  <div class="auth-card" style="width:min(480px,100%)">
+    <span class="eyebrow">Cash out</span>
+    <h1>Withdraw.</h1>
+    <p>Balance: <strong style="color:var(--purple-bright)">₦{{ "{:,.2f}".format(balance) }}</strong></p>
+    <p class="muted" style="margin-bottom:12px;font-size:0.88rem">
+      Minimum ₦{{ "{:,.0f}".format(min_withdrawal) }} · {{ fee_pct }}% processing fee
+    </p>
+
+    {% if not can_withdraw %}
+    <div class="alert-box">
+      You need an active investment product before you can withdraw.
+      The welcome bonus alone cannot be withdrawn — deposit into a product first.
+    </div>
+    <a class="button primary full" href="{{ url_for('packages') }}">View products</a>
+    {% else %}
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Amount (₦)<input type="number" name="amount" min="{{ min_withdrawal }}" step="1" required placeholder="Min {{ min_withdrawal }}"></label>
+      <label>Bank name<input name="bank_name" required placeholder="e.g. PalmPay, GTBank"></label>
+      <label>Account number<input name="account_number" required minlength="10" inputmode="numeric"></label>
+      <label>Account name<input name="account_name" required></label>
+      <button class="button primary full" type="submit">Submit withdrawal</button>
+    </form>
+    {% endif %}
+    <p class="small"><a href="{{ url_for('dashboard') }}">← Back home</a></p>
+  </div>
+</section>
+{% endblock %}

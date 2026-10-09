@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Deposit · {{ brand_name }}{% endblock %}
+{% block content %}
+<section class="shell page-head tight">
+  <span class="eyebrow">Choose your product</span>
+  <h1>Grow on your terms.</h1>
+  <p>See daily return and full 30-day revenue for each product.</p>
+</section>
+<section class="shell package-grid large">
+{% for p in packages %}
+{% set total30 = p.daily_payout * 30 %}
+<article class="package-card">
+  <div class="package-top"><span>{{ "%02d"|format(loop.index) }}</span><span class="daily-tag">₦{{ "{:,.0f}".format(p.daily_payout) }}/day</span></div>
+  <h3>{{ p.name }}</h3>
+  <div class="price">₦{{ "{:,.0f}".format(p.min_amount) }}</div>
+  <p class="pkg-reason">{{ p.description }}</p>
+  <div class="pkg-meta">
+    <span>Daily return</span>
+    <strong>₦{{ "{:,.0f}".format(p.daily_payout) }}</strong>
+  </div>
+  <div class="pkg-meta total">
+    <span>30-day total revenue</span>
+    <strong>₦{{ "{:,.0f}".format(total30) }}</strong>
+  </div>
+  {% if current_user.is_authenticated %}
+  <form method="post" action="{{ url_for('invest', package_id=p.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="amount" value="{{ p.min_amount }}">
+    <button class="button primary full" type="submit">Deposit now</button>
+  </form>
+  {% else %}
+  <a class="button ghost full" href="{{ url_for('register') }}">Create account</a>
+  {% endif %}
+</article>
+{% endfor %}
+</section>
+{% endblock %}

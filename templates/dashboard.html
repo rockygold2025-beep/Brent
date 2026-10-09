@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Home · {{ brand_name }}{% endblock %}
+{% block content %}
+<section class="shell dashboard-head tight">
+  <div>
+    <span class="eyebrow">Your account</span>
+    <h1>Hi, {{ current_user.name.split()[0] }}.</h1>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    {% if not checked_in_today %}
+    <form method="post" action="{{ url_for('checkin') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="button ghost" type="submit">Daily check-in</button>
+    </form>
+    {% else %}
+    <span class="button ghost" style="opacity:.6;cursor:default">Checked in today ✓</span>
+    {% endif %}
+    <a class="button primary" href="{{ url_for('packages') }}">Deposit</a>
+  </div>
+</section>
+<section class="shell stat-grid">
+  <article class="stat">
+    <span>Available balance</span>
+    <strong>₦{{ "{:,.2f}".format(balance) }}</strong>
+  </article>
+  <article class="stat">
+    <span>Active products</span>
+    <strong>{{ investments|selectattr("status","equalto","active")|list|length }}</strong>
+  </article>
+  <article class="stat">
+    <span>Referral</span>
+    <strong style="font-size:0.95rem"><a href="{{ url_for('referral') }}" class="code">Earn {{ referral_percent }}%</a></strong>
+  </article>
+</section>
+<section class="shell content-grid">
+  <div class="panel">
+    <div class="panel-head"><h2>Your products</h2></div>
+    {% for inv in investments %}
+    {% set total30 = inv.package.daily_payout * 30 %}
+    <div class="list-row">
+      <div>
+        <strong>{{ inv.package.name }}</strong>
+        <span>₦{{ "{:,.0f}".format(inv.principal) }} · ₦{{ "{:,.0f}".format(inv.package.daily_payout) }}/day · 30-day ₦{{ "{:,.0f}".format(total30) }}</span>
+      </div>
+      <div class="actions">
+        <span class="status {{ inv.status }}">{{ inv.status|replace("_"," ") }}</span>
+        {% if inv.status in ("awaiting_payment", "payment_submitted") %}
+        <a class="small-btn" href="{{ url_for('payment_instructions', investment_id=inv.id) }}">Pay</a>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <p class="muted" style="padding:12px 0">No products yet. <a href="{{ url_for('packages') }}" style="color:var(--purple-bright)">Deposit to start</a>.</p>
+    {% endfor %}
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>Recent activity</h2></div>
+    {% for tx in transactions %}
+    <div class="list-row">
+      <div>
+        <strong>{{ tx.type|replace("_"," ")|title }}</strong>
+        <span>{{ tx.description }} · <span class="status {{ tx.status }}">{{ tx.status }}</span></span>
+      </div>
+      <strong>₦{{ "{:,.2f}".format(tx.amount) }}</strong>
+    </div>
+    {% else %}
+    <p class="muted" style="padding:12px 0">No transactions yet.</p>
+    {% endfor %}
+  </div>
+</section>
+<section class="shell notice">
+  <strong>Community</strong>
+  <p><a href="{{ telegram_url }}" target="_blank" rel="noopener" style="color:var(--purple-bright);font-weight:600">Join our Telegram →</a></p>
+</section>
+{% endblock %}

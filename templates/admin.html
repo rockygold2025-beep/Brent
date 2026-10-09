@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Admin · {{ brand_name }}{% endblock %}
+{% block content %}
+<section class="shell dashboard-head">
+  <div><span class="eyebrow">Control centre</span><h1>Administration.</h1></div>
+</section>
+<section class="shell stat-grid">
+  <article class="stat"><span>Recent users</span><strong>{{ users|length }}</strong></article>
+  <article class="stat"><span>Pending investments</span><strong>{{ pending_investments|length }}</strong></article>
+  <article class="stat"><span>Pending ledger</span><strong>{{ pending|length }}</strong></article>
+</section>
+
+<section class="shell panel" style="margin-bottom:20px">
+  <div class="panel-head"><h2>Pending investments (deposits)</h2></div>
+  {% for inv in pending_investments %}
+  <div class="list-row">
+    <div>
+      <strong>#{{ inv.id }} · {{ inv.package.name }}</strong>
+      <span>User #{{ inv.user_id }} · ₦{{ "{:,.0f}".format(inv.principal) }} · Ref: {{ inv.payment_reference }}</span>
+    </div>
+    <div class="actions">
+      <span class="status {{ inv.status }}">{{ inv.status|replace("_"," ") }}</span>
+      <form method="post" action="{{ url_for('approve_investment', inv_id=inv.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="small-btn" type="submit">Approve</button>
+      </form>
+      <form method="post" action="{{ url_for('reject_investment', inv_id=inv.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="small-btn danger" type="submit">Reject</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <p class="muted" style="padding:12px 0">No pending investment payments.</p>
+  {% endfor %}
+</section>
+
+<section class="shell content-grid">
+  <div class="panel">
+    <div class="panel-head"><h2>Pending transactions (incl. withdrawals)</h2></div>
+    {% for tx in pending %}
+    <div class="list-row">
+      <div>
+        <strong>{{ tx.type|replace("_"," ")|title }}</strong>
+        <span>User #{{ tx.user_id }} · ₦{{ "{:,.2f}".format(tx.amount) }} · {{ tx.description }}</span>
+      </div>
+      <div class="actions">
+        <form method="post" action="{{ url_for('approve_transaction', tx_id=tx.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="small-btn" type="submit">Approve</button>
+        </form>
+        <form method="post" action="{{ url_for('reject_transaction', tx_id=tx.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="small-btn danger" type="submit">Reject</button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <p class="muted" style="padding:12px 0">Nothing pending.</p>
+    {% endfor %}
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>Users</h2></div>
+    {% for user in users %}
+    <div class="list-row">
+      <div><strong>{{ user.name }}</strong><span>{{ user.email }}</span></div>
+      <span class="status {{ user.status }}">{{ user.status }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="shell panel" style="margin:20px 0 48px">
+  <div class="panel-head"><h2>Recent investments</h2></div>
+  {% for inv in investments %}
+  <div class="list-row">
+    <div>
+      <strong>#{{ inv.id }} · {{ inv.package.name }}</strong>
+      <span>User #{{ inv.user_id }} · ₦{{ "{:,.0f}".format(inv.principal) }}{% if inv.payment_reference %} · {{ inv.payment_reference }}{% endif %}</span>
+    </div>
+    <span class="status {{ inv.status }}">{{ inv.status|replace("_"," ") }}</span>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

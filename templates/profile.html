@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Profile · {{ brand_name }}{% endblock %}
+{% block content %}
+<section class="auth shell">
+  <div class="auth-card" style="width:min(440px,100%)">
+    <span class="eyebrow">Account</span>
+    <h1>Profile.</h1>
+    <p>Balance: <strong style="color:var(--purple-bright)">₦{{ "{:,.2f}".format(balance) }}</strong></p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Full name<input name="name" value="{{ current_user.name }}" required></label>
+      <label>Email<input type="email" value="{{ current_user.email }}" disabled></label>
+      <label>Referral code<input value="{{ current_user.referral_code }}" disabled></label>
+      <button class="button primary full" type="submit">Save changes</button>
+    </form>
+    <p class="small">
+      <a href="{{ url_for('settings') }}">Change password</a> ·
+      <a href="{{ url_for('referral') }}">Referral link</a> ·
+      <a href="{{ telegram_url }}" target="_blank" rel="noopener">Telegram</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

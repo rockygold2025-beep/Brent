@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Referral · {{ brand_name }}{% endblock %}
+{% block content %}
+<section class="shell page-head">
+  <span class="eyebrow">Earn {{ referral_percent }}%</span>
+  <h1>Your referral link.</h1>
+  <p>Share this link. When someone joins and deposits, you earn {{ referral_percent }}%.</p>
+</section>
+<section class="shell" style="max-width:640px;margin:0 auto 48px">
+  <div class="panel">
+    <div class="panel-head"><h2>Invite link</h2></div>
+    <div class="ref-box" id="refLink">{{ ref_link }}</div>
+    <div class="copy-row">
+      <button class="button primary" type="button" id="copyBtn">Copy link</button>
+      <a class="button ghost" href="https://wa.me/?text={{ ref_link|urlencode }}" target="_blank" rel="noopener">Share on WhatsApp</a>
+    </div>
+    <p class="muted" style="margin-top:16px;font-size:0.85rem">Your code: <strong class="code">{{ current_user.referral_code }}</strong></p>
+  </div>
+  <div class="panel" style="margin-top:16px">
+    <div class="panel-head"><h2>Your referrals</h2></div>
+    {% for r in refs %}
+    <div class="list-row">
+      <div>
+        <strong>User #{{ r.referred_id }}</strong>
+        <span>{{ r.percentage }}% · ₦{{ "{:,.2f}".format(r.amount) }}</span>
+      </div>
+      <span class="status {{ r.status }}">{{ r.status }}</span>
+    </div>
+    {% else %}
+    <p class="muted" style="padding:12px 0">No referrals yet. Share your link to start earning.</p>
+    {% endfor %}
+  </div>
+</section>
+<script>
+document.getElementById("copyBtn")?.addEventListener("click", () => {
+  const t = document.getElementById("refLink").textContent.trim();
+  navigator.clipboard.writeText(t).then(() => {
+    const b = document.getElementById("copyBtn");
+    b.textContent = "Copied!";
+    setTimeout(() => b.textContent = "Copy link", 2000);
+  });
+});
+</script>
+{% endblock %}

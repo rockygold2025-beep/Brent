@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{{ brand_name }}{% endblock %}</title>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
+</head>
+<body class="{% if current_user.is_authenticated %}has-bottom-nav{% endif %}">
+<header class="nav">
+  <a class="brand" href="{{ url_for('index') }}">
+    <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="{{ brand_name }} logo">
+    <span>{{ brand_name }}</span>
+  </a>
+  <button class="nav-toggle" id="navToggle" aria-label="Menu" type="button">☰</button>
+  <nav class="nav-links" id="navLinks">
+    <a href="{{ url_for('packages') }}">Products</a>
+    {% if current_user.is_authenticated %}
+      <a href="{{ url_for('dashboard') }}">Home</a>
+      <a href="{{ url_for('packages') }}">Deposit</a>
+      <a href="{{ url_for('withdraw') }}">Withdraw</a>
+      <a href="{{ url_for('referral') }}">Referral</a>
+      <a href="{{ url_for('profile') }}">Profile</a>
+      <a href="{{ url_for('settings') }}">Settings</a>
+      {% if current_user.is_admin %}<a href="{{ url_for('admin_dashboard') }}">Admin</a>{% endif %}
+      <a href="{{ telegram_url }}" target="_blank" rel="noopener">Telegram</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    {% else %}
+      <a href="{{ url_for('login') }}">Login</a>
+      <a class="nav-cta" href="{{ url_for('register') }}">Create account</a>
+    {% endif %}
+  </nav>
+</header>
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-wrap">
+    {% for category, message in messages %}
+    <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+{% if current_user.is_authenticated %}
+<nav class="bottom-nav" aria-label="Main">
+  <a href="{{ url_for('packages') }}" class="{% if request.endpoint in ('packages','invest','payment_instructions') %}active{% endif %}">
+    <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M8 6V4h8v2"/></svg>
+    Deposit
+  </a>
+  <a href="{{ url_for('withdraw') }}" class="{% if request.endpoint == 'withdraw' %}active{% endif %}">
+    <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>
+    Withdraw
+  </a>
+  <a href="{{ url_for('dashboard') }}" class="nav-home {% if request.endpoint == 'dashboard' %}active{% endif %}">
+    <span class="home-fab">
+      <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1v-10.5z"/></svg>
+    </span>
+    Home
+  </a>
+  <a href="{{ url_for('referral') }}" class="{% if request.endpoint == 'referral' %}active{% endif %}">
+    <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 2.5-5 6-5s6 2 6 5M14 19c0-2 1.5-3.5 3.5-3.5S21 17 21 19"/></svg>
+    Refer
+  </a>
+  <a href="{{ url_for('profile') }}" class="{% if request.endpoint in ('profile','settings') %}active{% endif %}">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-3.5 3.5-6 8-6s8 2.5 8 6"/></svg>
+    Profile
+  </a>
+</nav>
+{% endif %}
+
+<footer class="footer">
+  <div>
+    <strong>{{ brand_name }}</strong>
+    Built to empower Africans worldwide.
+  </div>
+  <div class="footer-note">
+    <a href="{{ telegram_url }}" target="_blank" rel="noopener" style="color:var(--purple-bright);font-weight:600">Join our Telegram group →</a>
+  </div>
+</footer>
+</body>
+</html>

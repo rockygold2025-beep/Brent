@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ brand_name }} · Empowering Africans Worldwide{% endblock %}
+{% block content %}
+<section class="shell hero tight">
+  <div>
+    <span class="eyebrow">For Africans worldwide</span>
+    <h1>Grow with <span>Brent</span>. Clear. Disciplined. Global.</h1>
+    <p class="hero-text">
+      {{ brand_name }} helps Africans everywhere access structured investment products
+      with transparent daily returns and a simple deposit experience.
+    </p>
+    <div class="hero-actions">
+      {% if current_user.is_authenticated %}
+      <a class="button primary" href="{{ url_for('packages') }}">Deposit</a>
+      <a class="button ghost" href="{{ url_for('dashboard') }}">My account</a>
+      {% else %}
+      <a class="button primary" href="{{ url_for('register') }}">Start free — ₦{{ welcome_bonus }} bonus</a>
+      <a class="button ghost" href="{{ url_for('packages') }}">View products</a>
+      {% endif %}
+    </div>
+    <div class="trust-row">
+      <span><strong>10</strong> products</span>
+      <span><strong>{{ referral_percent }}%</strong> referral bonus</span>
+      <span><strong>Daily</strong> returns on every product</span>
+    </div>
+  </div>
+  <div class="hero-card">
+    <div class="card-label">Welcome balance</div>
+    <div class="mock-value">₦{{ "{:,}".format(welcome_bonus) }}</div>
+    <div class="mock-sub">Credited on every new account</div>
+    <div class="chart" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="hero-card-footer">
+      <span>Secure deposits</span>
+      <strong>Daily growth</strong>
+    </div>
+  </div>
+</section>
+<section class="shell section tight">
+  <div class="section-head">
+    <span class="eyebrow">Why Brent</span>
+    <h2>Built for clarity and growth.</h2>
+  </div>
+  <div class="feature-grid">
+    <article class="feature-card">
+      <div class="feature-icon">◆</div>
+      <h3>₦{{ welcome_bonus }} on signup</h3>
+      <p>Welcome balance is available immediately when you create your account.</p>
+    </article>
+    <article class="feature-card">
+      <div class="feature-icon">◇</div>
+      <h3>{{ referral_percent }}% per referral</h3>
+      <p>Share your unique link and earn when people you invite deposit.</p>
+    </article>
+    <article class="feature-card">
+      <div class="feature-icon">✦</div>
+      <h3>Daily check-in</h3>
+      <p>Claim a random bonus up to ₦80 every day from your home screen.</p>
+    </article>
+  </div>
+</section>
+<section class="shell section tight">
+  <div class="section-head">
+    <span class="eyebrow">Products</span>
+    <h2>Daily return + 30-day total.</h2>
+  </div>
+  <div class="package-grid">
+    {% for p in packages[:6] %}
+    {% set total30 = p.daily_payout * 30 %}
+    <article class="package-card">
+      <div class="package-top"><span>{{ "%02d"|format(loop.index) }}</span><span class="daily-tag">₦{{ "{:,.0f}".format(p.daily_payout) }}/day</span></div>
+      <h3>{{ p.name }}</h3>
+      <div class="price">₦{{ "{:,.0f}".format(p.min_amount) }}</div>
+      <p class="pkg-reason">{{ p.description }}</p>
+      <div class="pkg-meta total">
+        <span>30-day total</span>
+        <strong>₦{{ "{:,.0f}".format(total30) }}</strong>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  <p style="margin-top:20px;text-align:center">
+    <a class="button ghost" href="{{ url_for('packages') }}">See all products</a>
+  </p>
+</section>
+<section class="shell section tight">
+  <div class="dark-panel">
+    <span class="eyebrow">Community</span>
+    <h2>Join the Telegram group</h2>
+    <p style="margin-bottom:16px">Updates, support and announcements for members worldwide.</p>
+    <a class="button primary" href="{{ telegram_url }}" target="_blank" rel="noopener">Open Telegram</a>
+  </div>
+</section>
+{% endblock %}
